@@ -1,5 +1,6 @@
 load("//bazel:envoy_build_system.bzl", "envoy_cmake", "envoy_package")
 load("@rules_foreign_cc//foreign_cc:configure.bzl", "configure_make")
+load("@rules_foreign_cc//foreign_cc:defs.bzl", "make")
 
 licenses(["notice"])  # Apache 2
 
@@ -598,4 +599,37 @@ envoy_cmake(
         "//conditions:default": ["libzstd.a"],
     }),
     working_directory = "build/cmake",
+)
+
+configure_make(
+    name = "qatlib",
+    autogen = True,
+    configure_in_place = True,
+    configure_options = [
+        "--disable-fast-crc-in-assembler",
+        "--disable-systemd",
+        "--disable-shared",
+        "--with-pic",
+        "--enable-static",
+        "--enable-samples=no",
+    ],
+    lib_source = "@com_github_intel_qatlib//:all",
+    out_static_libs = [
+        "libqat.a",
+        "libusdm.a",
+    ],
+    visibility = ["//visibility:public"],
+    deps = ["@boringssl//:ssl"],
+    alwayslink = True,
+)
+
+make(
+    name = "qat-zstd",
+    includes = [],
+    build_data = ["@com_github_qat_zstd//:all"],
+    lib_source = "@com_github_qat_zstd//:all",
+    out_static_libs = ["libqatseqprod.a"],
+    tags = ["skip_on_windows"],
+    deps = ["qatlib", "zstd"],
+    targets = ["", "install"],
 )

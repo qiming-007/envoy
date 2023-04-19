@@ -20,6 +20,20 @@ ZstdCompressorImpl::ZstdCompressorImpl(uint32_t compression_level, bool enable_c
   result = ZSTD_CCtx_setParameter(cctx_.get(), ZSTD_c_strategy, strategy);
   RELEASE_ASSERT(!ZSTD_isError(result), "");
 
+  QZSTD_startQatDevice();
+
+  sequenceProducerState_ = QZSTD_createSeqProdState();
+
+    /* register qatSequenceProducer */
+  ZSTD_registerSequenceProducer(
+      cctx_.get(),
+      sequenceProducerState_,
+      qatSequenceProducer
+  );
+
+  result = ZSTD_CCtx_setParameter(cctx_.get(), ZSTD_c_enableSeqProducerFallback, 1);
+  RELEASE_ASSERT(!ZSTD_isError(result), "");
+
   if (cdict_manager_) {
     ZSTD_CDict* cdict = cdict_manager_->getFirstDictionary();
     result = ZSTD_CCtx_refCDict(cctx_.get(), cdict);
@@ -27,6 +41,14 @@ ZstdCompressorImpl::ZstdCompressorImpl(uint32_t compression_level, bool enable_c
     result = ZSTD_CCtx_setParameter(cctx_.get(), ZSTD_c_compressionLevel, compression_level_);
   }
   RELEASE_ASSERT(!ZSTD_isError(result), "");
+}
+
+ZstdCompressorImpl::~ZstdCompressorImpl(){
+  /* Free sequence producer state */
+    QZSTD_freeSeqProdState(sequenceProducerState_);
+    /* Stop QAT device, please call this function when
+    you won't use QAT anymore or before the process exits */
+    QZSTD_stopQatDevice();
 }
 
 void ZstdCompressorImpl::compress(Buffer::Instance& buffer,

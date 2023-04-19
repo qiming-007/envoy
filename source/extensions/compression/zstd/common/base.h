@@ -5,6 +5,7 @@
 #include "envoy/buffer/buffer.h"
 
 #include "zstd.h"
+#include "qatseqprod.h"
 
 namespace Envoy {
 namespace Extensions {
