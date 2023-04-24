@@ -12,7 +12,8 @@ ZstdCompressorFactory::ZstdCompressorFactory(
     : compression_level_(
           PROTOBUF_GET_WRAPPED_OR_DEFAULT(zstd, compression_level, ZSTD_CLEVEL_DEFAULT)),
       enable_checksum_(zstd.enable_checksum()), strategy_(zstd.strategy()),
-      chunk_size_(PROTOBUF_GET_WRAPPED_OR_DEFAULT(zstd, chunk_size, ZSTD_CStreamOutSize())) {
+      chunk_size_(PROTOBUF_GET_WRAPPED_OR_DEFAULT(zstd, chunk_size, ZSTD_CStreamOutSize())),
+      enable_qat_zstd_(zstd.enable_qat_zstd()) {
   if (zstd.has_dictionary()) {
     Protobuf::RepeatedPtrField<envoy::config::core::v3::DataSource> dictionaries;
     dictionaries.Add()->CopyFrom(zstd.dictionary());
@@ -26,7 +27,7 @@ ZstdCompressorFactory::ZstdCompressorFactory(
 
 Envoy::Compression::Compressor::CompressorPtr ZstdCompressorFactory::createCompressor() {
   return std::make_unique<ZstdCompressorImpl>(compression_level_, enable_checksum_, strategy_,
-                                              cdict_manager_, chunk_size_);
+                                              cdict_manager_, chunk_size_, enable_qat_zstd_);
 }
 
 Envoy::Compression::Compressor::CompressorFactoryPtr

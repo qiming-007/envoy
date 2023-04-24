@@ -23,7 +23,8 @@ class ZstdCompressorImpl : public Common::Base,
                            NonCopyable {
 public:
   ZstdCompressorImpl(uint32_t compression_level, bool enable_checksum, uint32_t strategy,
-                     const ZstdCDictManagerPtr& cdict_manager, uint32_t chunk_size);
+                     const ZstdCDictManagerPtr& cdict_manager, uint32_t chunk_size,
+                     bool enable_qat_zstd);
   ~ZstdCompressorImpl() override;
 
   // Compression::Compressor::Compressor
@@ -35,6 +36,7 @@ private:
   void* sequenceProducerState_;
   const ZstdCDictManagerPtr& cdict_manager_;
   const uint32_t compression_level_;
+  bool enable_qat_zstd_;
 };
 
 } // namespace Compressor

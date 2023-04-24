@@ -41,6 +41,7 @@ private:
   const bool enable_checksum_;
   const uint32_t strategy_;
   const uint32_t chunk_size_;
+  const bool enable_qat_zstd_;
   ZstdCDictManagerPtr cdict_manager_{nullptr};
 };
 
