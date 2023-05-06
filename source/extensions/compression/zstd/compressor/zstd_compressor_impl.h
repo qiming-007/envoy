@@ -2,6 +2,7 @@
 
 #include "envoy/compression/compressor/compressor.h"
 
+#include "source/common/common/logger.h"
 #include "source/extensions/compression/zstd/common/base.h"
 #include "source/extensions/compression/zstd/common/dictionary_manager.h"
 
@@ -20,11 +21,12 @@ using ZstdCDictManagerPtr = std::unique_ptr<ZstdCDictManager>;
  */
 class ZstdCompressorImpl : public Common::Base,
                            public Envoy::Compression::Compressor::Compressor,
+                           public Logger::Loggable<Logger::Id::compression>,
                            NonCopyable {
 public:
   ZstdCompressorImpl(uint32_t compression_level, bool enable_checksum, uint32_t strategy,
                      const ZstdCDictManagerPtr& cdict_manager, uint32_t chunk_size,
-                     bool enable_qat_zstd);
+                     bool enable_qat_zstd, uint32_t qat_zstd_fallback_threshold);
   ~ZstdCompressorImpl() override;
 
   // Compression::Compressor::Compressor
@@ -37,6 +39,7 @@ private:
   const ZstdCDictManagerPtr& cdict_manager_;
   const uint32_t compression_level_;
   bool enable_qat_zstd_;
+  const uint32_t qat_zstd_fallback_threshold_;
 };
 
 } // namespace Compressor

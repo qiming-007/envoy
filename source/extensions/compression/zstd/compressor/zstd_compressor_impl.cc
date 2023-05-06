@@ -10,10 +10,11 @@ namespace Compressor {
 
 ZstdCompressorImpl::ZstdCompressorImpl(uint32_t compression_level, bool enable_checksum,
                                        uint32_t strategy, const ZstdCDictManagerPtr& cdict_manager,
-                                       uint32_t chunk_size, bool enable_qat_zstd)
+                                       uint32_t chunk_size, bool enable_qat_zstd,
+                                       uint32_t qat_zstd_fallback_threshold)
     : Common::Base(chunk_size), cctx_(ZSTD_createCCtx(), &ZSTD_freeCCtx),
       cdict_manager_(cdict_manager), compression_level_(compression_level),
-      enable_qat_zstd_(enable_qat_zstd) {
+      enable_qat_zstd_(enable_qat_zstd), qat_zstd_fallback_threshold_(qat_zstd_fallback_threshold) {
   size_t result;
   result = ZSTD_CCtx_setParameter(cctx_.get(), ZSTD_c_checksumFlag, enable_checksum);
   RELEASE_ASSERT(!ZSTD_isError(result), "");
@@ -21,6 +22,10 @@ ZstdCompressorImpl::ZstdCompressorImpl(uint32_t compression_level, bool enable_c
   result = ZSTD_CCtx_setParameter(cctx_.get(), ZSTD_c_strategy, strategy);
   RELEASE_ASSERT(!ZSTD_isError(result), "");
 
+  ENVOY_LOG(debug,
+            "zstd new ZstdCompressorImpl, compression_level: {}, strategy: {}, chunk_size: "
+            "{}, enable_qat_zstd: {}, qat_zstd_fallback_threshold: {}",
+            compression_level, strategy, chunk_size, enable_qat_zstd, qat_zstd_fallback_threshold);
   if (enable_qat_zstd_) {
     QZSTD_startQatDevice();
 
@@ -43,6 +48,7 @@ ZstdCompressorImpl::ZstdCompressorImpl(uint32_t compression_level, bool enable_c
 }
 
 ZstdCompressorImpl::~ZstdCompressorImpl() {
+  ENVOY_LOG(debug, "zstd free ZstdCompressorImpl");
   if (enable_qat_zstd_) {
     /* Free sequence producer state */
     QZSTD_freeSeqProdState(sequenceProducerState_);
@@ -55,7 +61,16 @@ ZstdCompressorImpl::~ZstdCompressorImpl() {
 void ZstdCompressorImpl::compress(Buffer::Instance& buffer,
                                   Envoy::Compression::Compressor::State state) {
   Buffer::OwnedImpl accumulation_buffer;
+  ENVOY_LOG(debug, "zstd compress input size {}", buffer.length());
+  if (enable_qat_zstd_ && state == Envoy::Compression::Compressor::State::Flush) {
+    // Fallback software if input size less than threshold to achieve better performance.
+    if (buffer.length() < qat_zstd_fallback_threshold_) {
+      ENVOY_LOG(debug, "zstd compress fall back to software");
+      ZSTD_registerSequenceProducer(cctx_.get(), nullptr, nullptr);
+    }
+  }
   for (const Buffer::RawSlice& input_slice : buffer.getRawSlices()) {
+    ENVOY_LOG(debug, "zstd compress input slice {}", input_slice.len_);
     if (input_slice.len_ > 0) {
       setInput(input_slice);
       process(accumulation_buffer, ZSTD_e_continue);
@@ -67,7 +82,10 @@ void ZstdCompressorImpl::compress(Buffer::Instance& buffer,
   buffer.move(accumulation_buffer);
 
   if (state == Envoy::Compression::Compressor::State::Finish) {
+    ENVOY_LOG(debug, "zstd compress state Finish");
     process(buffer, ZSTD_e_end);
+  } else {
+    ENVOY_LOG(debug, "zstd compress state Flush");
   }
 }
 

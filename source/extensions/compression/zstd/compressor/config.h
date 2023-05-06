@@ -14,6 +14,9 @@ namespace Compression {
 namespace Zstd {
 namespace Compressor {
 
+// Default threshold for qat_zstd fallback to software.
+const uint32_t DefaultQatZstdFallbackThreshold = 4000;
+
 namespace {
 
 const std::string& zstdStatsPrefix() { CONSTRUCT_ON_FIRST_USE(std::string, "zstd."); }
@@ -42,6 +45,7 @@ private:
   const uint32_t strategy_;
   const uint32_t chunk_size_;
   const bool enable_qat_zstd_;
+  const uint32_t qat_zstd_fallback_threshold_;
   ZstdCDictManagerPtr cdict_manager_{nullptr};
 };
 
