@@ -30,7 +30,8 @@ class ZstdCompressorFactory : public Envoy::Compression::Compressor::CompressorF
 public:
   ZstdCompressorFactory(const envoy::extensions::compression::zstd::compressor::v3::Zstd& zstd,
                         Event::Dispatcher& dispatcher, Api::Api& api,
-                        ThreadLocal::SlotAllocator& tls);
+                        ThreadLocal::SlotAllocator& tls,
+                        Server::Configuration::FactoryContext& context);
 
   // Envoy::Compression::Compressor::CompressorFactory
   Envoy::Compression::Compressor::CompressorPtr createCompressor() override;
@@ -46,6 +47,7 @@ private:
   const uint32_t chunk_size_;
   const bool enable_qat_zstd_;
   const uint32_t qat_zstd_fallback_threshold_;
+  Server::Configuration::FactoryContext& context_;
   ZstdCDictManagerPtr cdict_manager_{nullptr};
 };
 

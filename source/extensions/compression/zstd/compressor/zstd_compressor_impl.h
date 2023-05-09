@@ -1,6 +1,7 @@
 #pragma once
 
 #include "envoy/compression/compressor/compressor.h"
+#include "envoy/server/factory_context.h"
 
 #include "source/common/common/logger.h"
 #include "source/extensions/compression/zstd/common/base.h"
@@ -16,6 +17,12 @@ using ZstdCDictManager =
     Common::DictionaryManager<ZSTD_CDict, ZSTD_freeCDict, ZSTD_getDictID_fromCDict>;
 using ZstdCDictManagerPtr = std::unique_ptr<ZstdCDictManager>;
 
+class QATStarter : public Logger::Loggable<Logger::Id::compression>, public Singleton::Instance {
+public:
+  QATStarter();
+  ~QATStarter() override;
+};
+
 /**
  * Implementation of compressor's interface.
  */
@@ -26,7 +33,8 @@ class ZstdCompressorImpl : public Common::Base,
 public:
   ZstdCompressorImpl(uint32_t compression_level, bool enable_checksum, uint32_t strategy,
                      const ZstdCDictManagerPtr& cdict_manager, uint32_t chunk_size,
-                     bool enable_qat_zstd, uint32_t qat_zstd_fallback_threshold);
+                     bool enable_qat_zstd, uint32_t qat_zstd_fallback_threshold,
+                     Server::Configuration::FactoryContext& context);
   ~ZstdCompressorImpl() override;
 
   // Compression::Compressor::Compressor
@@ -40,7 +48,9 @@ private:
   const uint32_t compression_level_;
   bool enable_qat_zstd_;
   const uint32_t qat_zstd_fallback_threshold_;
+  std::shared_ptr<QATStarter> qat_starter_;
 };
+
 
 } // namespace Compressor
 } // namespace Zstd

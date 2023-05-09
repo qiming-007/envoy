@@ -8,10 +8,13 @@ namespace Compression {
 namespace Zstd {
 namespace Compressor {
 
+SINGLETON_MANAGER_REGISTRATION(qat_starter);
+
 ZstdCompressorImpl::ZstdCompressorImpl(uint32_t compression_level, bool enable_checksum,
                                        uint32_t strategy, const ZstdCDictManagerPtr& cdict_manager,
                                        uint32_t chunk_size, bool enable_qat_zstd,
-                                       uint32_t qat_zstd_fallback_threshold)
+                                       uint32_t qat_zstd_fallback_threshold,
+                                       Server::Configuration::FactoryContext& context)
     : Common::Base(chunk_size), cctx_(ZSTD_createCCtx(), &ZSTD_freeCCtx),
       cdict_manager_(cdict_manager), compression_level_(compression_level),
       enable_qat_zstd_(enable_qat_zstd), qat_zstd_fallback_threshold_(qat_zstd_fallback_threshold) {
@@ -27,8 +30,10 @@ ZstdCompressorImpl::ZstdCompressorImpl(uint32_t compression_level, bool enable_c
             "{}, enable_qat_zstd: {}, qat_zstd_fallback_threshold: {}",
             compression_level, strategy, chunk_size, enable_qat_zstd, qat_zstd_fallback_threshold);
   if (enable_qat_zstd_) {
-    QZSTD_startQatDevice();
-
+    qat_starter_ = context.singletonManager().getTyped<QATStarter>(
+        SINGLETON_MANAGER_REGISTERED_NAME(qat_starter), [] {
+          return std::make_shared<QATStarter>();
+        });
     sequenceProducerState_ = QZSTD_createSeqProdState();
 
     /* register qatSequenceProducer */
@@ -52,9 +57,6 @@ ZstdCompressorImpl::~ZstdCompressorImpl() {
   if (enable_qat_zstd_) {
     /* Free sequence producer state */
     QZSTD_freeSeqProdState(sequenceProducerState_);
-    /* Stop QAT device, please call this function when
-    you won't use QAT anymore or before the process exits */
-    QZSTD_stopQatDevice();
   }
 }
 
@@ -99,6 +101,22 @@ void ZstdCompressorImpl::process(Buffer::Instance& output_buffer, ZSTD_EndDirect
     // Otherwise, we're finished when we've consumed all the input.
     finished = (ZSTD_e_end == mode) ? (remaining == 0) : (input_.pos == input_.size);
   } while (!finished);
+}
+
+QATStarter::QATStarter() {
+  int status = QZSTD_startQatDevice();
+  ENVOY_LOG(debug, "zstd QATStarter status: {}", status);
+  QZSTD_Status_e status_e = static_cast<QZSTD_Status_e>(status);
+  if (status_e == QZSTD_FAIL) {
+    throw EnvoyException("Failed to start QAT device.");
+  }
+}
+
+QATStarter::~QATStarter() {
+  /* Stop QAT device, please call this function when
+  you won't use QAT anymore or before the process exits */
+  ENVOY_LOG(debug, "zstd QZSTD_stopQatDevice");
+  QZSTD_stopQatDevice();
 }
 
 } // namespace Compressor
