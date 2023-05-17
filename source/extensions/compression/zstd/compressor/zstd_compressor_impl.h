@@ -26,7 +26,7 @@ class ZstdCompressorImpl : public Common::Base,
 public:
   ZstdCompressorImpl(uint32_t compression_level, bool enable_checksum, uint32_t strategy,
                      const ZstdCDictManagerPtr& cdict_manager, uint32_t chunk_size,
-                     bool enable_qat_zstd, uint32_t qat_zstd_fallback_threshold);
+                     bool enable_qat_zstd, uint32_t qat_zstd_fallback_threshold,void*sequenceProducerState);
   ~ZstdCompressorImpl() override;
 
   // Compression::Compressor::Compressor
@@ -35,11 +35,11 @@ public:
 private:
   void process(Buffer::Instance& output_buffer, ZSTD_EndDirective mode);
   std::unique_ptr<ZSTD_CCtx, decltype(&ZSTD_freeCCtx)> cctx_;
-  void* sequenceProducerState_;
   const ZstdCDictManagerPtr& cdict_manager_;
   const uint32_t compression_level_;
   bool enable_qat_zstd_;
   const uint32_t qat_zstd_fallback_threshold_;
+  void* sequenceProducerState_;
 };
 
 } // namespace Compressor

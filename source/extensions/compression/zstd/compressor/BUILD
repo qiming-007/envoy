@@ -30,5 +30,7 @@ envoy_cc_extension(
         "//source/common/http:headers_lib",
         "//source/extensions/compression/common/compressor:compressor_factory_base_lib",
         "@envoy_api//envoy/extensions/compression/zstd/compressor/v3:pkg_cc_proto",
+        "//envoy/event:dispatcher_interface",
+        "//envoy/thread_local:thread_local_interface",
     ],
 )
