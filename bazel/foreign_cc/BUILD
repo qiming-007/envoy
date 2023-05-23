@@ -623,13 +623,13 @@ configure_make(
     alwayslink = True,
 )
 
-# make(
-#     name = "qat-zstd",
-#     includes = [],
-#     build_data = ["@com_github_qat_zstd//:all"],
-#     lib_source = "@com_github_qat_zstd//:all",
-#     out_static_libs = ["libqatseqprod.a"],
-#     tags = ["skip_on_windows"],
-#     deps = ["qatlib", "zstd"],
-#     targets = ["", "install"],
-# )
+make(
+    name = "qat-zstd",
+    includes = [],
+    build_data = ["@com_github_qat_zstd//:all"],
+    lib_source = "@com_github_qat_zstd//:all",
+    out_static_libs = ["libqatseqprod.a"],
+    tags = ["skip_on_windows"],
+    deps = ["qatlib", "zstd"],
+    targets = ["", "install"],
+)

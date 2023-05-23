@@ -28,14 +28,14 @@ static_resources:
               response_direction_config:
                 common_config:
                   min_content_length: 100
-                  content_type: application/octet-stream
+                  content_type: text/plain
                 disable_on_etag_header: false
               compressor_library:
                 name: text_optimized
                 typed_config:
                   "@type": type.googleapis.com/envoy.extensions.compression.zstd.compressor.v3.Zstd
                   compression_level: 8
-                  enable_qat_zstd: true
+                  enable_qat_zstd: false
                   qat_zstd_fallback_threshold: 0
           - name: envoy.filters.http.router
             typed_config:

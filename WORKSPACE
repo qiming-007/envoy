@@ -24,8 +24,8 @@ load("//bazel:dependency_imports.bzl", "envoy_dependency_imports")
 
 envoy_dependency_imports()
 
-new_local_repository(
-    name = "zstd_qat",
-    path = "/usr/local/",
-    build_file = "bazel/zstd_qat.BUILD"
-)
+# new_local_repository(
+#     name = "zstd_qat",
+#     path = "/usr/local/",
+#     build_file = "bazel/zstd_qat.BUILD"
+# )
