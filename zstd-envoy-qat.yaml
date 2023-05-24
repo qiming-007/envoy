@@ -35,7 +35,8 @@ static_resources:
                 typed_config:
                   "@type": type.googleapis.com/envoy.extensions.compression.zstd.compressor.v3.Zstd
                   compression_level: 8
-                  enable_qat_zstd: false
+                  enable_qat_zstd: true
+                  chunk_size: 65536
                   qat_zstd_fallback_threshold: 0
           - name: envoy.filters.http.router
             typed_config:

@@ -31,8 +31,8 @@ ZstdCompressorImpl::ZstdCompressorImpl(uint32_t compression_level, bool enable_c
     /* register qatSequenceProducer */
     ZSTD_registerSequenceProducer(cctx_.get(), sequenceProducerState_, qatSequenceProducer);
 
-    result = ZSTD_CCtx_setParameter(cctx_.get(), ZSTD_c_enableSeqProducerFallback, 1);
-    RELEASE_ASSERT(!ZSTD_isError(result), "");
+    // result = ZSTD_CCtx_setParameter(cctx_.get(), ZSTD_c_enableSeqProducerFallback, 1);
+    // RELEASE_ASSERT(!ZSTD_isError(result), "");
     
   }
 
@@ -52,20 +52,29 @@ void ZstdCompressorImpl::compress(Buffer::Instance& buffer,
                                   Envoy::Compression::Compressor::State state) {
   Buffer::OwnedImpl accumulation_buffer;
   // ENVOY_LOG(debug, "zstd compress input size {}", buffer.length());
-  if (enable_qat_zstd_ && state == Envoy::Compression::Compressor::State::Flush) {
-    // Fallback software if input size less than threshold to achieve better performance.
-    if (buffer.length() < qat_zstd_fallback_threshold_) {
-      ENVOY_LOG(debug, "zstd compress fall back to software");
-      ZSTD_registerSequenceProducer(cctx_.get(), nullptr, nullptr);
-    }
-  }
+  // if (enable_qat_zstd_ && state == Envoy::Compression::Compressor::State::Flush) {
+  //   // Fallback software if input size less than threshold to achieve better performance.
+  //   if (buffer.length() < qat_zstd_fallback_threshold_) {
+  //     ENVOY_LOG(debug, "zstd compress fall back to software");
+  //     ZSTD_registerSequenceProducer(cctx_.get(), nullptr, nullptr);
+  //   }
+  // }
   for (const Buffer::RawSlice& input_slice : buffer.getRawSlices()) {
     // ENVOY_LOG(debug, "zstd compress input slice {}", input_slice.len_);
     if (input_slice.len_ > 0) {
-      setInput(input_slice);
-      process(accumulation_buffer, ZSTD_e_continue);
+      if(input_len_+input_slice.len_>chunk_size_){
+        setInput();
+        process(accumulation_buffer, ZSTD_e_continue);
+      }
+      memcpy(input_ptr_.get() + input_len_, input_slice.mem_, input_slice.len_); // NOLINT(safe-memcpy)
+      input_len_ += input_slice.len_;
       buffer.drain(input_slice.len_);
     }
+  }
+
+  if(input_len_>0){
+    setInput();
+    process(accumulation_buffer, ZSTD_e_continue);
   }
 
   ASSERT(buffer.length() == 0);
