@@ -17,7 +17,7 @@ ZstdCompressorFactory::ZstdCompressorFactory(
       enable_qat_zstd_(zstd.enable_qat_zstd()),
       qat_zstd_fallback_threshold_(PROTOBUF_GET_WRAPPED_OR_DEFAULT(
           zstd, qat_zstd_fallback_threshold, DefaultQatZstdFallbackThreshold)),
-      context_(context) {
+      tls_slot_(nullptr) {
   if (zstd.has_dictionary()) {
     Protobuf::RepeatedPtrField<envoy::config::core::v3::DataSource> dictionaries;
     dictionaries.Add()->CopyFrom(zstd.dictionary());
@@ -27,12 +27,49 @@ ZstdCompressorFactory::ZstdCompressorFactory(
           return ZSTD_createCDict(dict_buffer, dict_size, compression_level_);
         });
   }
+
+  if (enable_qat_zstd_) {
+    tls_slot_ = ThreadLocal::TypedSlot<QatzstdThreadLocal>::makeUnique(tls);
+    tls_slot_->set([](Event::Dispatcher&) { return std::make_shared<QatzstdThreadLocal>(); });
+  }
+}
+
+ZstdCompressorFactory::QatzstdThreadLocal::QatzstdThreadLocal()
+    : initialized_(false), sequenceProducerState_(nullptr) {}
+
+ZstdCompressorFactory::QatzstdThreadLocal::~QatzstdThreadLocal() {
+  if (initialized_) {
+    /* Free sequence producer state */
+    QZSTD_freeSeqProdState(sequenceProducerState_);
+    /* Stop QAT device, please call this function when
+    you won't use QAT anymore or before the process exits */
+    QZSTD_stopQatDevice();
+  }
+}
+
+void* ZstdCompressorFactory::QatzstdThreadLocal::GetQATSession() {
+  // The session must be initialized only once in every worker thread.
+  if (!initialized_) {
+
+    int status = QZSTD_startQatDevice();
+    RELEASE_ASSERT(status == QZSTD_OK, "failed to initialize hardware");
+    sequenceProducerState_ = QZSTD_createSeqProdState();
+    initialized_ = true;
+  }
+
+  return sequenceProducerState_;
 }
 
 Envoy::Compression::Compressor::CompressorPtr ZstdCompressorFactory::createCompressor() {
-  return std::make_unique<ZstdCompressorImpl>(compression_level_, enable_checksum_, strategy_,
-                                              cdict_manager_, chunk_size_, enable_qat_zstd_,
-                                              qat_zstd_fallback_threshold_, context_);
+  if (enable_qat_zstd_) {
+    return std::make_unique<ZstdCompressorImpl>(
+        compression_level_, enable_checksum_, strategy_, cdict_manager_, chunk_size_,
+        enable_qat_zstd_, qat_zstd_fallback_threshold_, tls_slot_->get()->GetQATSession());
+  } else {
+    return std::make_unique<ZstdCompressorImpl>(compression_level_, enable_checksum_, strategy_,
+                                                cdict_manager_, chunk_size_, enable_qat_zstd_,
+                                                qat_zstd_fallback_threshold_, nullptr);
+  }
 }
 
 Envoy::Compression::Compressor::CompressorFactoryPtr

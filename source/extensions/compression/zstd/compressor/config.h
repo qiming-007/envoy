@@ -3,6 +3,9 @@
 #include "envoy/compression/compressor/factory.h"
 #include "envoy/extensions/compression/zstd/compressor/v3/zstd.pb.h"
 #include "envoy/extensions/compression/zstd/compressor/v3/zstd.pb.validate.h"
+#include "envoy/event/dispatcher.h"
+#include "envoy/thread_local/thread_local.h"
+#include "qatseqprod.h"
 
 #include "source/common/http/headers.h"
 #include "source/extensions/compression/common/compressor/factory_base.h"
@@ -41,6 +44,13 @@ public:
   }
 
 private:
+  struct QatzstdThreadLocal : public ThreadLocal::ThreadLocalObject {
+    QatzstdThreadLocal();
+    ~QatzstdThreadLocal() override;
+    void* GetQATSession();
+    bool initialized_;
+    void* sequenceProducerState_;
+  };
   const uint32_t compression_level_;
   const bool enable_checksum_;
   const uint32_t strategy_;
@@ -49,6 +59,7 @@ private:
   const uint32_t qat_zstd_fallback_threshold_;
   Server::Configuration::FactoryContext& context_;
   ZstdCDictManagerPtr cdict_manager_{nullptr};
+  ThreadLocal::TypedSlotPtr<QatzstdThreadLocal> tls_slot_;
 };
 
 class ZstdCompressorLibraryFactory
