@@ -48,7 +48,7 @@ void ZstdDecompressorImpl::decompress(const Buffer::Instance& input_buffer,
         }
       }
 
-      setInput(input_slice);
+      setInput(static_cast<uint8_t*>(input_slice.mem_), input_slice.len_);
       if (!process(output_buffer)) {
         return;
       }

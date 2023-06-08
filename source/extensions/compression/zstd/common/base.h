@@ -18,10 +18,13 @@ struct Base {
   Base(uint32_t chunk_size);
 
 protected:
-  void setInput(const Buffer::RawSlice& input_slice);
+  void setInput(const uint8_t* input, size_t size);
   void getOutput(Buffer::Instance& output_buffer);
 
+  uint64_t chunk_size_;
   std::unique_ptr<uint8_t[]> chunk_ptr_;
+  std::unique_ptr<uint8_t[]> input_ptr_;
+  uint64_t input_len_;
   ZSTD_outBuffer output_;
   ZSTD_inBuffer input_;
   unsigned dictionary_id_{0};
