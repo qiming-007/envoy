@@ -35,8 +35,8 @@ ZstdCompressorImpl::ZstdCompressorImpl(uint32_t compression_level, bool enable_c
     /* register qatSequenceProducer */
     ZSTD_registerSequenceProducer(cctx_.get(), sequenceProducerState_, qatSequenceProducer);
     ENVOY_LOG(debug, "zstd ZstdCompressorImpl disable fallback");
-    // result = ZSTD_CCtx_setParameter(cctx_.get(), ZSTD_c_enableSeqProducerFallback, 1);
-    // RELEASE_ASSERT(!ZSTD_isError(result), "");
+    result = ZSTD_CCtx_setParameter(cctx_.get(), ZSTD_c_enableSeqProducerFallback, 1);
+    RELEASE_ASSERT(!ZSTD_isError(result), "");
   }
 
   if (cdict_manager_) {
@@ -58,7 +58,7 @@ void ZstdCompressorImpl::compress(Buffer::Instance& buffer,
   uint64_t buffer_length = buffer.length();  
   ENVOY_LOG(debug, "zstd compress input size {}", buffer.length());
   if (enable_qat_zstd_ && state == Envoy::Compression::Compressor::State::Flush) {
-    // Fallback software if input size less than threshold to achieve better performance.
+    // Fall back to software if input size less than threshold to achieve better performance.
     if (buffer.length() < qat_zstd_fallback_threshold_) {
       ENVOY_LOG(debug, "zstd compress fall back to software");
       ZSTD_registerSequenceProducer(cctx_.get(), nullptr, nullptr);
